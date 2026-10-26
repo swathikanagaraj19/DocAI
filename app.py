@@ -1,3 +1,99 @@
+import json
+import os
+import re
+from io import BytesIO
+
+from flask import Flask, jsonify, render_template, request, send_file
+from pypdf import PdfReader
+from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.utils import secure_filename
+
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+ALLOWED_EXTENSIONS = {".pdf", ".txt"}
+
+FIELD_KEYS = ["name", "email", "skills", "education", "work_experience", "key_findings"]
+
+
+def extract_text(upload):
+    filename = secure_filename(upload.filename or "")
+    extension = os.path.splitext(filename)[1].lower()
+    if not filename:
+        raise ValueError("Choose a file first.")
+    if extension not in ALLOWED_EXTENSIONS:
+        raise ValueError("Unsupported file type. Please upload a PDF or TXT file.")
+    raw = upload.read()
+    if not raw:
+        raise ValueError("The selected file is empty.")
+    if extension == ".txt":
+        text = raw.decode("utf-8-sig", errors="replace")
+    else:
+        try:
+            reader = PdfReader(BytesIO(raw))
+            if getattr(reader, "is_encrypted", False):
+                try:
+                    reader.decrypt("")
+                except Exception:
+                    raise ValueError("This PDF is password-protected. Upload an unlocked PDF.")
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise ValueError("This PDF could not be read. Try another PDF or a TXT file.") from exc
+    text = re.sub(r"[ \t]+", " ", text).strip()
+    if not text:
+        raise ValueError("No readable text was found. Scanned/image-only PDFs need OCR, which is not included.")
+    return text
+
+
+def fallback_analysis(source, summary_style, analysis_level, focus_fields):
+    lines = [re.sub(r"\s+", " ", line).strip(" •\t-") for line in source.splitlines()]
+    lines = [line for line in lines if line]
+    limit = {"basic": 3, "standard": 6, "detailed": 10}.get(analysis_level, 6)
+    chosen = lines[:limit]
+    if summary_style == "brief":
+        summary = " ".join(chosen[:2])
+    elif summary_style == "bullets":
+        summary = "\n".join("• " + line for line in chosen)
+    else:
+        summary = " ".join(chosen)
+    email_match = re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", source, re.I)
+    phone_match = re.search(r"(?<!\d)(?:\+?\d[\d ()-]{7,}\d)(?!\d)", source)
+    first_line = lines[0] if lines and len(lines[0]) <= 70 and "@" not in lines[0] else None
+    skill_terms = [
+        "Python", "Java", "JavaScript", "TypeScript", "SQL", "HTML", "CSS", "React",
+        "Flask", "FastAPI", "C++", "C", "Excel", "Machine Learning", "Data Analysis",
+        "Git", "GitHub", "REST API", "Pandas", "NumPy", "Communication", "Leadership"
+    ]
+    skills = [s for s in skill_terms if re.search(r"(?<!\w)" + re.escape(s) + r"(?!\w)", source, re.I)]
+    education = [line for line in lines if re.search(
+        r"\b(B\.?\s?E\.?|B\.?\s?Tech|BSc|B\.?\s?Sc|M\.?\s?E\.?|M\.?\s?Tech|MBA|Bachelor|Master|Diploma|University|College|Education|Degree)\b",
+        line, re.I)]
+    experience = [line for line in lines if re.search(
+        r"\b(Intern|Internship|Experience|Developer|Engineer|Manager|Worked|Employment|Company|Project)\b",
+        line, re.I)]
+    extracted = {
+        "name": first_line,
+        "email": email_match.group(0) if email_match else None,
+        "skills": skills,
+        "education": education[:10],
+        "work_experience": experience[:10],
+        "key_findings": lines[:5],
+        "phone": phone_match.group(0).strip() if phone_match else None,
+    }
+    if focus_fields:
+        for key in ["name", "email", "skills", "education", "work_experience"]:
+            if key not in focus_fields:
+                extracted[key] = None if key in ("name", "email") else []
+    return summary, extracted, "Local demo mode (Gemini API not configured)"
+
+
+def gemini_analysis(source, summary_style, analysis_level, focus_fields):
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
+    # Import lazily so the application can still start if optional AI package is unavailable.
+    import google.generativeai as genai
 
     genai.configure(api_key=api_key)
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
@@ -126,3 +222,6 @@ def download_json():
     memory.seek(0)
     return send_file(memory, mimetype="application/json", as_attachment=True, download_name="documind-analysis.json")
 
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "5000")), debug=False)
