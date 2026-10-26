@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="DocuMind AI document intelligence demo">
+  <title>DocuMind AI — Document Intelligence</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="DocuMind AI home"><span class="brand-icon">▤✦</span><span><b>DocuMind<span>AI</span></b><small>Your documents, smarter.</small></span></a>
+  <div class="top-actions"><span class="status-pill"><i></i> Document Intelligence</span><button id="themeBtn" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">☾</button></div>
+</header>
+<div class="layout">
+  <aside class="sidebar">
+    <p class="side-label">WORKSPACE</p>
+    <a class="nav active" href="#home">⌂ <span>Home</span></a>
+    <a class="nav" href="#upload">▤ <span>Analyze document</span></a>
+    <a class="nav" href="#results">☷ <span>Results</span></a>
+    <div class="side-note"><div class="spark">✦</div><b>Less reading.<br>More understanding.</b><p>Turn long documents into clear, useful insights.</p></div>
+    <div class="side-footer">DOCUMIND AI · TASK 2</div>
+  </aside>
+  <main id="home" class="main">
+    <section class="hero">
+      <div><p class="eyebrow">AI-POWERED DOCUMENT INTELLIGENCE</p><h1>Understand your documents<br><span>in less time.</span></h1><p class="hero-copy">Upload a PDF or text file to summarize content, extract key details, and explore insights in one place.</p><a class="primary-btn" href="#upload">Start analyzing <span>→</span></a></div>
+      <div class="hero-art" aria-hidden="true"><div class="paper"><span></span><span></span><span></span><span></span><span></span></div><div class="ai-bubble">AI</div><div class="star star1">✦</div><div class="star star2">✧</div></div>
+    </section>
+    <section id="upload" class="panel upload-panel">
+      <div class="section-head"><div><p class="eyebrow">STEP 01</p><h2>Upload a document</h2><p class="muted">PDF or TXT · up to 10 MB · text-based documents work best</p></div><div class="file-mark">↑</div></div>
+      <form id="uploadForm">
+        <label id="dropZone" class="drop-zone">
+          <input type="file" id="document" name="document" accept=".pdf,.txt,application/pdf,text/plain" required>
+          <span class="upload-symbol">↑</span><strong>Drop your document here</strong><span class="muted">or <em>browse files</em> from your device</span><small id="fileName">No file selected</small>
+        </label>
+        <div class="controls-grid">
+          <label>Summary style<select name="summary_style"><option value="detailed">Detailed paragraph</option><option value="brief">Brief summary</option><option value="bullets">Bullet points</option></select></label>
+          <label>Analysis depth<select name="analysis_level"><option value="basic">Basic</option><option value="standard" selected>Standard</option><option value="detailed">Detailed</option></select></label>
+        </div>
+        <fieldset class="focus-fields"><legend>Focus fields <span>(optional — leave all unchecked to analyze all)</span></legend>
+          <label><input type="checkbox" name="focus_fields" value="name"> Name</label>
+          <label><input type="checkbox" name="focus_fields" value="email"> Email</label>
+          <label><input type="checkbox" name="focus_fields" value="skills"> Skills</label>
+          <label><input type="checkbox" name="focus_fields" value="education"> Education</label>
+          <label><input type="checkbox" name="focus_fields" value="work_experience"> Experience</label>
+        </fieldset>
+        <button class="primary-btn submit-btn" id="analyzeBtn" type="submit">Analyze document <span>→</span></button>
+      </form>
+      <div id="progress" class="progress hidden"><div class="spinner"></div><div><b>Analyzing your document…</b><p class="muted">Extracting text and preparing insights.</p></div></div>
+      <div id="errorBox" class="error-box hidden" role="alert"></div>
+    </section>
+    <section id="results" class="results-section hidden">
+      <div class="results-title"><div><p class="eyebrow">STEP 02</p><h2>Document insights</h2><p id="resultMeta" class="muted"></p></div><button id="downloadBtn" class="secondary-btn">↓ Export JSON</button></div>
+      <div class="stats-grid">
+        <article class="stat-card"><span class="stat-icon purple">▤</span><div><small>Document text</small><strong id="charCount">—</strong><small>characters extracted</small></div></article>
+        <article class="stat-card"><span class="stat-icon green">✓</span><div><small>Completeness</small><strong id="completeValue">—%</strong><div class="meter"><span id="completeBar"></span></div></div></article>
+        <article class="stat-card"><span class="stat-icon blue">✦</span><div><small>Analysis mode</small><strong class="mode-label" id="modelUsed">—</strong><small>check output before use</small></div></article>
+      </div>
+      <div class="results-grid">
+        <article class="panel"><div class="panel-title"><span class="title-icon">✧</span><div><h3>Summary</h3><p class="muted">The main points from your document</p></div></div><div id="summaryText" class="summary-text"></div></article>
+        <article class="panel"><div class="panel-title"><span class="title-icon teal">☷</span><div><h3>Extracted information</h3><p class="muted">Structured fields found in the document</p></div></div><div id="extractedGrid" class="extracted-grid"></div></article>
+        <article class="panel chart-panel"><div class="panel-title"><span class="title-icon blue">▥</span><div><h3>Skills snapshot</h3><p class="muted">Skills detected in the uploaded text</p></div></div><div class="chart-wrap"><canvas id="skillsChart"></canvas><p id="noSkills" class="muted hidden">No recognizable skills were detected in this document.</p></div></article>
+        <article class="panel"><div class="panel-title"><span class="title-icon amber">✦</span><div><h3>Key findings</h3><p class="muted">Useful details to review</p></div></div><ul id="findingsList" class="findings-list"></ul></article>
+      </div>
+      <p class="notice">ⓘ <span id="reviewNotice">Review extracted details against the original document before relying on them.</span></p>
+    </section>
+    <footer>DocuMind AI <span>•</span> Document intelligence demo <span>•</span> Uploaded documents are processed in memory.</footer>
+  </main>
+</div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

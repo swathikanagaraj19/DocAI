@@ -1,0 +1,19 @@
+SWATHI SAMPLE
+Email: swathi.sample@example.com
+Phone: +91 98765 43210
+
+CAREER OBJECTIVE
+Entry-level software developer interested in Python applications and document automation.
+
+EDUCATION
+B.E. in Computer Science, Example Engineering College (sample data)
+
+SKILLS
+Python, SQL, HTML, CSS, Git, Flask, Data Analysis
+
+INTERNSHIP EXPERIENCE
+Python Development Intern - built a small document-processing prototype.
+AI Intern - explored text classification and summarization.
+
+PROJECTS
+DocuMind AI - a document analysis demo that summarizes files and extracts structured information.
